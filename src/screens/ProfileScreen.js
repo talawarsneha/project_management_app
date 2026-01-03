@@ -1,0 +1,236 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  Alert,
+  Image,
+  ActivityIndicator
+} from 'react-native';
+import { Avatar, Button, Card, Title, Paragraph } from 'react-native-paper';
+import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth } from '../config/firebase';
+
+const ProfileScreen = () => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('user');
+        if (userData) {
+          setUser(JSON.parse(userData));
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+        Alert.alert('Error', 'Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserProfile();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      await AsyncStorage.removeItem('user');
+      navigation.replace('Login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4CAF50" />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={styles.container}>
+        <Text>No user data found. Please login again.</Text>
+        <Button mode="contained" onPress={() => navigation.navigate('Login')}>
+          Go to Login
+        </Button>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Avatar.Icon 
+          size={100} 
+          icon="account" 
+          style={styles.avatar} 
+        />
+        <Title style={styles.name}>{user.name || 'User'}</Title>
+        <Text style={styles.email}>{user.email}</Text>
+        <Text style={styles.role}>
+          {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Member'}
+        </Text>
+      </View>
+
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Account Information</Title>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Name:</Text>
+            <Text style={styles.value}>{user.name || 'Not set'}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Email:</Text>
+            <Text style={styles.value}>{user.email}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Role:</Text>
+            <Text style={[styles.value, styles.roleBadge]}>
+              {user.role || 'member'}
+            </Text>
+          </View>
+          {user.createdAt && (
+            <View style={styles.infoRow}>
+              <Text style={styles.label}>Member since:</Text>
+              <Text style={styles.value}>
+                {new Date(user.createdAt).toLocaleDateString()}
+              </Text>
+            </View>
+          )}
+        </Card.Content>
+      </Card>
+
+      <View style={styles.buttonContainer}>
+        <Button 
+          mode="contained" 
+          onPress={() => navigation.navigate('EditProfile')}
+          style={styles.button}
+          labelStyle={styles.buttonLabel}
+        >
+          Edit Profile
+        </Button>
+        
+        <Button 
+          mode="outlined" 
+          onPress={handleLogout}
+          style={[styles.button, styles.logoutButton]}
+          labelStyle={[styles.buttonLabel, styles.logoutButtonLabel]}
+        >
+          Logout
+        </Button>
+      </View>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f9f5',
+    padding: 15,
+    paddingTop: 60, // Increased padding to move content further down
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    marginBottom: 15,
+    elevation: 2,
+  },
+  avatar: {
+    backgroundColor: '#4CAF50',
+    marginBottom: 15,
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  email: {
+    color: '#666',
+    marginBottom: 5,
+  },
+  role: {
+    backgroundColor: '#e3f2fd',
+    color: '#1976d2',
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+    borderRadius: 12,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  card: {
+    marginBottom: 20,
+    borderRadius: 10,
+    elevation: 2,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  label: {
+    fontSize: 16,
+    color: '#666',
+    flex: 1,
+  },
+  value: {
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1.5,
+    textAlign: 'right',
+  },
+  roleBadge: {
+    backgroundColor: '#e3f2fd',
+    color: '#1976d2',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    fontSize: 12,
+    textAlign: 'center',
+    alignSelf: 'flex-end',
+  },
+  buttonContainer: {
+    marginTop: 10,
+    paddingHorizontal: 10,
+  },
+  button: {
+    marginVertical: 8,
+    paddingVertical: 6,
+    backgroundColor: '#4CAF50',
+  },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  logoutButton: {
+    borderColor: '#f44336',
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
+  logoutButtonLabel: {
+    color: '#f44336',
+  },
+});
+
+export default ProfileScreen;

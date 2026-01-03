@@ -1,9 +1,11 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 
 // Contexts
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
@@ -16,31 +18,131 @@ import AddTaskScreen from './src/screens/AddTaskScreen';
 import LoginScreen from './src/screens/auth/LoginScreen';
 import MemberDashboardScreen from './src/screens/MemberDashboardScreen';
 import ManagerDashboardScreen from './src/screens/ManagerDashboardScreen';
+import TeamManagementScreen from './src/screens/TeamManagementScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+// Manager Tabs
+const ManagerTabs = () => (
+  <Tab.Navigator
+    screenOptions={({ route }) => ({
+      tabBarIcon: ({ focused, color, size }) => {
+        let iconName;
+
+        if (route.name === 'ManagerDashboard') {
+          iconName = focused ? 'home' : 'home-outline';
+        } else if (route.name === 'Profile') {
+          iconName = focused ? 'person' : 'person-outline';
+        } else if (route.name === 'Team') {
+          iconName = focused ? 'people' : 'people-outline';
+        } else if (route.name === 'Projects') {
+          iconName = focused ? 'folder' : 'folder-outline';
+        }
+
+        return <Ionicons name={iconName} size={size} color={color} />;
+      },
+      tabBarActiveTintColor: '#2e7d32',
+      tabBarInactiveTintColor: 'gray',
+      headerShown: false,
+      tabBarStyle: { paddingBottom: 5 },
+      contentStyle: { paddingTop: 10 }
+    })}
+  >
+    <Tab.Screen 
+      name="ManagerDashboard" 
+      component={ManagerDashboardScreen} 
+      options={{ title: 'Dashboard' }}
+    />
+    <Tab.Screen 
+      name="Team" 
+      component={TeamManagementScreen} 
+      options={{ title: 'Team' }}
+    />
+    <Tab.Screen 
+      name="Projects" 
+      component={ProjectsScreen} 
+      options={{ title: 'Projects' }}
+    />
+    <Tab.Screen 
+      name="Profile" 
+      component={ProfileScreen} 
+      options={{ title: 'Profile' }}
+    />
+  </Tab.Navigator>
+);
+
+// Member Tabs
+const MemberTabs = () => (
+  <Tab.Navigator
+    screenOptions={({ route }) => ({
+      tabBarIcon: ({ focused, color, size }) => {
+        let iconName;
+
+        if (route.name === 'MemberDashboard') {
+          iconName = focused ? 'home' : 'home-outline';
+        } else if (route.name === 'Profile') {
+          iconName = focused ? 'person' : 'person-outline';
+        } else if (route.name === 'MyTasks') {
+          iconName = focused ? 'list' : 'list-outline';
+        }
+
+        return <Ionicons name={iconName} size={size} color={color} />;
+      },
+      tabBarActiveTintColor: '#4a90e2',
+      tabBarInactiveTintColor: 'gray',
+      headerShown: false,
+      tabBarStyle: { paddingBottom: 5 },
+      contentStyle: { paddingTop: 10 }
+    })}
+  >
+    <Tab.Screen 
+      name="MemberDashboard" 
+      component={MemberDashboardScreen} 
+      options={{ title: 'Dashboard' }}
+    />
+    <Tab.Screen 
+      name="MyTasks" 
+      component={MemberDashboardScreen} 
+      options={{ title: 'My Tasks' }}
+    />
+    <Tab.Screen 
+      name="Profile" 
+      component={ProfileScreen} 
+      options={{ title: 'Profile' }}
+    />
+  </Tab.Navigator>
+);
 
 // Initialize sample data if no projects exist
 const initializeData = async () => {
   // Initialize test users if they don't exist
   try {
-    const testUsers = [
+    const users = [
       {
         id: 'manager1',
         email: 'manager@example.com',
         name: 'Project Manager',
         role: 'manager',
-        password: 'manager123' // In a real app, this should be hashed
+        password: 'manager123', // In a real app, this should be hashed
+        createdAt: new Date().toISOString()
       },
       {
         id: 'member1',
         email: 'member@example.com',
         name: 'Team Member',
         role: 'member',
-        password: 'member123' // In a real app, this should be hashed
+        password: 'member123', // In a real app, this should be hashed
+        createdAt: new Date().toISOString()
       }
     ];
     
-    await AsyncStorage.setItem('testUsers', JSON.stringify(testUsers));
+    // Check if users already exist to prevent overwriting
+    const existingUsers = await AsyncStorage.getItem('users');
+    if (!existingUsers) {
+      await AsyncStorage.setItem('users', JSON.stringify(users));
+    }
   } catch (error) {
     console.error('Error initializing test users:', error);
   }
@@ -121,48 +223,21 @@ const AppNavigator = () => {
         {user ? (
           // User is logged in
           user.role === 'manager' ? (
-            // Manager routes
-            <>
-              <Stack.Screen 
-                name="ManagerDashboard" 
-                component={ManagerDashboardScreen} 
-                options={{ 
-                  title: 'Manager Dashboard',
-                  headerRight: renderHeaderRight 
-                }} 
-              />
-              <Stack.Screen 
-                name="Projects" 
-                component={ProjectsScreen} 
-                options={{ 
-                  title: 'Projects',
-                  headerRight: renderHeaderRight 
-                }} 
-              />
-              <Stack.Screen 
-                name="ProjectDetails" 
-                component={ProjectDetailsScreen} 
-                options={{ title: 'Project Details' }}
-              />
-              <Stack.Screen 
-                name="AddProject" 
-                component={AddProjectScreen} 
-                options={{ title: 'Add Project' }}
-              />
-              <Stack.Screen 
-                name="AddTask" 
-                component={AddTaskScreen} 
-                options={{ title: 'Add Task' }}
-              />
-            </>
-          ) : (
-            // Member routes
+            // Manager tabs
             <Stack.Screen 
-              name="MemberDashboard" 
-              component={MemberDashboardScreen} 
-              options={{ 
-                title: 'My Dashboard',
-                headerRight: renderHeaderRight
+              name="ManagerTabs" 
+              component={ManagerTabs}
+              options={{
+                headerShown: false
+              }}
+            />
+          ) : (
+            // Member tabs
+            <Stack.Screen 
+              name="MemberTabs" 
+              component={MemberTabs}
+              options={{
+                headerShown: false
               }}
             />
           )
@@ -174,6 +249,32 @@ const AppNavigator = () => {
             options={{ headerShown: false }}
           />
         )}
+        
+        {/* Common screens that can be navigated to from both manager and member tabs */}
+        <Stack.Screen 
+          name="AddProject" 
+          component={AddProjectScreen} 
+          options={{ 
+            title: 'New Project',
+            presentation: 'modal'
+          }} 
+        />
+        <Stack.Screen 
+          name="ProjectDetails" 
+          component={ProjectDetailsScreen} 
+          options={({ route }) => ({ 
+            title: route.params?.projectName || 'Project Details',
+            presentation: 'card'
+          })} 
+        />
+        <Stack.Screen 
+          name="AddTask" 
+          component={AddTaskScreen} 
+          options={{ 
+            title: 'Add New Task',
+            presentation: 'modal'
+          }} 
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

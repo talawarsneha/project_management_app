@@ -1,4 +1,13 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  updateProfile
+} from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext();
@@ -10,87 +19,196 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is logged in on initial load
   useEffect(() => {
-    const loadUser = async () => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
-        console.log('Checking for existing user session...');
-        const userJson = await AsyncStorage.getItem('user');
-        console.log('User from storage:', userJson);
-        if (userJson) {
-          const user = JSON.parse(userJson);
-          console.log('Loaded user from storage:', user);
-          setUser(user);
+        if (firebaseUser) {
+          // Get additional user data from Firestore
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const userObj = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              ...userData
+            };
+            
+            // Update both state and storage
+            await AsyncStorage.setItem('user', JSON.stringify(userObj));
+            setUser(userObj);
+          } else {
+            // If no user data in Firestore, create it
+            const newUser = {
+              email: firebaseUser.email,
+              name: firebaseUser.displayName || 'User',
+              role: 'member',
+              createdAt: new Date().toISOString()
+            };
+            
+            await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
+            
+            const userObj = {
+              uid: firebaseUser.uid,
+              ...newUser
+            };
+            
+            await AsyncStorage.setItem('user', JSON.stringify(userObj));
+            setUser(userObj);
+          }
         } else {
-          console.log('No user found in storage');
+          // No user is signed in
+          await AsyncStorage.removeItem('user');
+          setUser(null);
         }
-      } catch (err) {
-        console.error('Failed to load user', err);
+      } catch (error) {
+        console.error('Auth state change error:', error);
+        // On error, clear the user to be safe
+        await AsyncStorage.removeItem('user');
+        setUser(null);
       } finally {
         setLoading(false);
       }
-    };
+    });
 
-    loadUser();
+    // Cleanup subscription
+    return () => unsubscribe();
   }, []);
 
-  const login = async (email, password) => {
-    console.log('Login attempt with:', { email });
+  // Sign up a new user
+  const signup = async (email, password, name) => {
     try {
       setLoading(true);
       setError(null);
       
-      // Get test users from AsyncStorage
-      const testUsersJson = await AsyncStorage.getItem('testUsers');
-      console.log('Test users from storage:', testUsersJson);
+      // Create user with email and password
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      if (!testUsersJson) {
-        throw new Error('No test users found. Please restart the app to initialize test data.');
-      }
+      // Update user profile with display name
+      await updateProfile(userCredential.user, { displayName: name });
       
-      const testUsers = JSON.parse(testUsersJson);
-      const user = testUsers.find(
-        u => u.email === email && u.password === password
-      );
+      // Create user document in Firestore
+      const userData = {
+        email,
+        name,
+        role: 'member',
+        createdAt: new Date().toISOString()
+      };
       
-      if (user) {
-        // Remove password before storing user
-        const { password, ...userWithoutPassword } = user;
-        console.log('Login successful, user:', userWithoutPassword);
-        await AsyncStorage.setItem('user', JSON.stringify(userWithoutPassword));
-        setUser(userWithoutPassword);
-        return true; // Return true on success
-      } else {
-        console.log('Invalid credentials for email:', email);
-        setError('Invalid email or password');
-        return false;
-      }
-    } catch (err) {
-      console.error('Login error:', err);
-      setError(err.message || 'Login failed');
-      return false;
+      await setDoc(doc(db, 'users', userCredential.user.uid), userData);
+
+      // Update local state and storage
+      const userObj = {
+        uid: userCredential.user.uid,
+        ...userData
+      };
+      
+      await AsyncStorage.setItem('user', JSON.stringify(userObj));
+      setUser(userObj);
+      
+      return userObj;
+    } catch (error) {
+      console.error('Signup error:', error);
+      setError(error.message);
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = async () => {
+  // Login existing user
+  const login = async (email, password) => {
     try {
+      setLoading(true);
+      setError(null);
+      
+      // Sign in with email and password
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Get user data from Firestore
+      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+      
+      if (!userDoc.exists()) {
+        throw new Error('User data not found. Please contact support.');
+      }
+      
+      const userData = userDoc.data();
+      const userObj = {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        ...userData
+      };
+      
+      // Ensure AsyncStorage is updated
+      await AsyncStorage.setItem('user', JSON.stringify(userObj));
+      setUser(userObj);
+      
+      return userObj;
+    } catch (error) {
+      console.error('Login error:', error);
+      // Clear any potentially invalid auth state
       await AsyncStorage.removeItem('user');
       setUser(null);
-    } catch (err) {
-      console.error('Failed to logout', err);
+      setError(error.message || 'Failed to login. Please check your credentials.');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Logout user
+  const logout = async () => {
+    try {
+      setLoading(true);
+      await signOut(auth);
+      await AsyncStorage.removeItem('user');
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update user profile
+  const updateUserProfile = async (updates) => {
+    if (!user) throw new Error('Not authenticated');
+    
+    try {
+      setLoading(true);
+      
+      // Update in Firestore
+      await setDoc(doc(db, 'users', user.uid), updates, { merge: true });
+      
+      // Update local state and storage
+      const updatedUser = { ...user, ...updates };
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      
+      return updatedUser;
+    } catch (error) {
+      console.error('Update profile error:', error);
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <AuthContext.Provider
+    <AuthContext.Provider 
       value={{
         user,
         loading,
         error,
+        signup,
         login,
         logout,
-        isAuthenticated: !!user,
-      }}>
+        updateUserProfile,
+        isAuthenticated: !!user
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
