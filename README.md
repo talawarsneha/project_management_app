@@ -120,7 +120,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [React Native Paper](https://reactnativepaper.com/)
 
 ## Contact
-
-Your Name - [@your_twitter](https://twitter.com/your_twitter) - your.email@example.com
-
 Project Link: [https://github.com/talawarsneha/project_management_app](https://github.com/talawarsneha/project_management_app)
