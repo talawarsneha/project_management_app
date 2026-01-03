@@ -254,9 +254,22 @@ const AppNavigator = () => {
         <Stack.Screen 
           name="AddProject" 
           component={AddProjectScreen} 
-          options={{ 
+          options={{
             title: 'New Project',
-            presentation: 'modal'
+            headerShown: true,
+            headerStyle: {
+              backgroundColor: '#ffffff',
+              elevation: 0, // Remove shadow on Android
+              shadowOpacity: 0, // Remove shadow on iOS
+              borderBottomWidth: 0,
+            },
+            headerTintColor: '#1b5e20',
+            headerTitleStyle: {
+              fontWeight: '700',
+              color: '#1b5e20',
+            },
+            headerBackTitle: 'Back',
+            presentation: 'card', // Change from modal to card
           }} 
         />
         <Stack.Screen 

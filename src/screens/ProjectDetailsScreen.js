@@ -150,7 +150,7 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8faf8',
     padding: 16,
   },
   loadingContainer: {
@@ -167,15 +167,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   addButton: {
-    backgroundColor: '#4a90e2',
-    paddingVertical: 10,
-    borderRadius: 4,
+    backgroundColor: '#2e7d32',
+    paddingVertical: 14,
+    borderRadius: 8,
     alignItems: 'center',
     marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    shadowColor: '#1b5e20',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   addButtonText: {
     color: '#fff',
     fontWeight: '600',
+    marginLeft: 8,
+    fontSize: 16,
   },
   listContainer: {
     paddingBottom: 20,
@@ -203,15 +212,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
     alignSelf: 'flex-start',
+    minWidth: 90,
+    alignItems: 'center',
   },
   statusText: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   assignedTo: {
     fontSize: 14,

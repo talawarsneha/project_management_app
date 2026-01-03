@@ -1,13 +1,35 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TextInput, 
+  TouchableOpacity, 
+  Alert, 
+  ScrollView, 
+  SafeAreaView, 
+  Platform, 
+  StatusBar,
+  KeyboardAvoidingView,
+  Dimensions
+} from 'react-native';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
-const AddProjectScreen = () => {
+const { width } = Dimensions.get('window');
+
+const AddProjectScreen = ({ navigation }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigation = useNavigation();
+  const [dueDate, setDueDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const handleShowDatePicker = () => {
+    setShowDatePicker(true);
+  };
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -24,6 +46,7 @@ const AddProjectScreen = () => {
         description: description.trim(),
         tasks: [],
         createdAt: new Date().toISOString(),
+        dueDate: dueDate ? dueDate.toISOString() : null,
       };
 
       const savedProjects = await AsyncStorage.getItem('projects');
@@ -54,50 +77,212 @@ const AddProjectScreen = () => {
     }
   };
 
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    setSelectedDate(selectedDate);
+    setDueDate(selectedDate);
+  };
+
+  const clearDate = () => {
+    setDueDate(null);
+  };
+
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>Project Name *</Text>
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-          placeholder="Enter project name"
-          placeholderTextColor="#999"
-        />
-      </View>
-
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>Description</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Enter project description"
-          placeholderTextColor="#999"
-          multiline
-          numberOfLines={4}
-        />
-      </View>
-
-      <TouchableOpacity 
-        style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
-        onPress={handleSubmit}
-        disabled={isSubmitting}
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#1b5e20" />
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Text style={styles.submitButtonText}>
-          {isSubmitting ? 'Saving...' : 'Create Project'}
-        </Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <ScrollView 
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Form Card */}
+          <View style={styles.card}>
+            {/* Project Name */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Project Name <Text style={styles.required}>*</Text></Text>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={[styles.input, !name && styles.inputEmpty]}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Enter project name"
+                  placeholderTextColor="#9e9e9e"
+                  autoFocus={true}
+                />
+                {name ? (
+                  <TouchableOpacity 
+                    style={styles.clearButton}
+                    onPress={() => setName('')}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialIcons name="clear" size={18} color="#9e9e9e" />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+
+            {/* Description */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Description</Text>
+              <View style={[styles.inputContainer, styles.textAreaContainer]}>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Enter project description"
+                  placeholderTextColor="#9e9e9e"
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+                {description ? (
+                  <TouchableOpacity 
+                    style={[styles.clearButton, styles.clearTextAreaButton]}
+                    onPress={() => setDescription('')}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialIcons name="clear" size={18} color="#9e9e9e" />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+
+            {/* Due Date */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Due Date</Text>
+              <TouchableOpacity 
+                style={styles.dateInputContainer}
+                onPress={handleShowDatePicker}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.dateText, !dueDate && styles.placeholderText]}>
+                  {dueDate ? dueDate.toLocaleDateString() : 'Select a date'}
+                </Text>
+                {dueDate ? (
+                  <TouchableOpacity 
+                    style={styles.clearButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      clearDate();
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialIcons name="clear" size={18} color="#9e9e9e" />
+                  </TouchableOpacity>
+                ) : (
+                  <MaterialCommunityIcons 
+                    name="calendar-month-outline" 
+                    size={20} 
+                    color="#9e9e9e" 
+                    style={styles.calendarIcon} 
+                  />
+                )}
+              </TouchableOpacity>
+              <Text style={styles.hint}>Tap to select a date</Text>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={selectedDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleDateChange}
+                  minimumDate={new Date()}
+                />
+              )}
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Submit Button */}
+      <View style={styles.footer}>
+        <TouchableOpacity 
+          style={[styles.submitButton, (!name || isSubmitting) && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={!name || isSubmitting}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.submitButtonText}>
+            {isSubmitting ? (
+              <><MaterialIcons name="hourglass-empty" size={16} color="#ffffff" /> Creating...</>
+            ) : (
+              <><MaterialIcons name="add" size={16} color="#ffffff" /> Create Project</>
+            )}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: '#f8faf8',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingTop: 40,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+  },
+  header: {
+    padding: 24,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 50,
+    paddingBottom: 20,
+    backgroundColor: '#ffffff',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: '#1b5e20',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4,
+    marginBottom: 8,
+    zIndex: 1,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1b5e20',
+    marginBottom: 4,
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#666666',
+    fontWeight: '400',
+    textAlign: 'center',
+    marginTop: 2,
+    letterSpacing: 0.2,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#1b5e20',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   formGroup: {
     marginBottom: 20,
@@ -108,33 +293,103 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: '#333',
   },
+  required: {
+    color: '#f44336',
+  },
+  inputContainer: {
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    overflow: 'hidden',
+  },
   input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 4,
-    padding: 12,
-    fontSize: 16,
-    color: '#333',
-    backgroundColor: '#f9f9f9',
+    flex: 1,
+    height: 52,
+    fontSize: 15,
+    color: '#1a1a1a',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#ffffff',
+    fontWeight: '400',
+  },
+  inputEmpty: {
+    color: '#9e9e9e',
+  },
+  clearButton: {
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  textAreaContainer: {
+    minHeight: 100,
   },
   textArea: {
-    minHeight: 100,
     textAlignVertical: 'top',
   },
-  submitButton: {
-    backgroundColor: '#4a90e2',
-    padding: 16,
-    borderRadius: 4,
+  clearTextAreaButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+  },
+  dateInputContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    height: 52,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    paddingHorizontal: 16,
+  },
+  dateText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+  },
+  placeholderText: {
+    color: '#9e9e9e',
+  },
+  calendarIcon: {
+    marginLeft: 12,
+  },
+  hint: {
+    fontSize: 14,
+    color: '#9e9e9e',
+    marginTop: 4,
+  },
+  footer: {
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  submitButton: {
+    backgroundColor: '#2e7d32',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    borderWidth: 0,
+    shadowColor: '#1b5e20',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   submitButtonDisabled: {
-    backgroundColor: '#a0c4ff',
+    backgroundColor: '#a5d6a7',
   },
   submitButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 8,
   },
 });
 

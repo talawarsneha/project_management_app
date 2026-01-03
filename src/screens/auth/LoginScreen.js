@@ -97,19 +97,6 @@ const LoginScreen = ({ navigation }) => {
               <Text style={styles.buttonText}>Sign In</Text>
             )}
           </TouchableOpacity>
-          
-          {/* Demo credentials */}
-          <View style={styles.demoContainer}>
-            <Text style={styles.demoTitle}>Test Accounts:</Text>
-            <Text style={styles.demoText}>Manager: manager@example.com</Text>
-            <Text style={styles.demoText}>Password: manager123</Text>
-            <View style={styles.divider} />
-            <Text style={styles.demoText}>Member: member@example.com</Text>
-            <Text style={styles.demoText}>Password: member123</Text>
-            <Text style={styles.note}>
-              Note: Please contact your manager to get your login credentials.
-            </Text>
-          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
